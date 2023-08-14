@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        # get staged files, write newlines/file to tempfile, get issue line, check if issue exist in newlines, add to output
+        entry: bash -c 'rm -rf .tmpPyCh && mkdir -p .tmpPyCh/dfiles && mkdir -p .tmpPyCh/issues;
+              files=$(git diff --cached --name-only | grep .py);
+              for file in $files; do
+                filename="${file##*/}";
+                git diff --cached "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpPyCh/dfiles/"${filename}";
+                for issue in "$(flake8 "$file")"; do
+                  p1="${issue#*:}" && p2=${p1%%:*};
+                  mline=$(sed -n "$p2"p "$file");
+                  [ -n "$mline" ] && mt=$(cat ".tmpPyCh/dfiles/${filename}" | grep "$mline");
+                  if [ -n "$mt" ]; then
+                    echo -e "==>" >> .tmpPyCh/output.txt;
+                    echo "$issue" >> .tmpPyCh/output.txt;
+                  fi;
+                  unset mt; unset mline;
+                done;
+              done;
+              [ -f .tmpPyCh/output.txt ] && (cat .tmpPyCh/output.txt) && rm -rf .tmpPyCh; exit 1;'
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.5
+    hooks:
+      - id: shellcheck
+        # get staged files, write newlines/file to tempfile, write file/issue/stgfie, check if issue exist in newlines, add to output
+        entry: bash -c 'mkdir -p .tmpShCh/dfiles && mkdir -p .tmpShCh/issues;
+              files=$(git diff --cached --name-only | grep .sh);
+              for file in $files; do
+                filename="${file##*/}";
+                git diff --cached "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpShCh/dfiles/"${filename}";
+                shellcheck "$file" | sed "/^$/d" | awk "/^In/{x=\".tmpShCh/issues/${filename%.*}\"++i;}{print > x;}";
+                for ifile in .tmpShCh/issues/${filename%.*}*; do
+                  mline="$(cat "$ifile" | head -2)";
+                  [ -n "$mline" ] && mt=$(cat ".tmpShCh/dfiles/${filename}" | grep "$mline");
+                  if [ -n "$mt" ]; then
+                    echo -e "\n----------------------------------" >> .tmpShCh/output.txt;
+                    cat "$ifile" >> .tmpShCh/output.txt;
+                  fi;
+                  unset mt; unset mline;
+                done;
+              done;
+              [ -f .tmpShCh/output.txt ] && (cat .tmpShCh/output.txt && rm -rf .tmpShch && exit 1)'
