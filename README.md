@@ -1,6 +1,11 @@
 # precommit-diff-only
 Perform pre-commit check only on the new changes
 
+Solves : 
+https://github.com/pre-commit/pre-commit/issues/1279
+https://github.com/pre-commit/pre-commit/pull/1280
+
+
 ## bash script: 
 
 ```sh
