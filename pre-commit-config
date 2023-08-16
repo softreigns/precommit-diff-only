@@ -5,11 +5,13 @@ repos:
       - id: flake8
         # get staged files, write newlines/file to tempfile, get issue line, check if issue exist in newlines, add to output
         entry: bash -c 'rm -rf .tmpPyCh && mkdir -p .tmpPyCh/dfiles && mkdir -p .tmpPyCh/issues;
-              files=$(git diff --cached --name-only | grep .py);
+              files=$(git diff --cached --name-only | grep "\.py");
+              echo "$files";
               for file in $files; do
                 filename="${file##*/}";
-                git diff --cached "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpPyCh/dfiles/"${filename}";
-                for issue in "$(flake8 "$file")"; do
+                git diff --cached --color=never "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpPyCh/dfiles/"${filename}";
+                flake8 "$file" > .tmpPyCh/tmp;
+                while IFS= read -r issue; do
                   p1="${issue#*:}" && p2="${p1%%:*}";
                   mline=$(sed -n "$p2"p "$file");
                   [ -n "$mline" ] && mt=$(grep "$mline" < ".tmpPyCh/dfiles/${filename}");
@@ -17,9 +19,16 @@ repos:
                     echo "$issue" >> .tmpPyCh/output.txt;
                   fi;
                   unset mt; unset mline;
-                done;
+                done < .tmpPyCh/tmp;
               done;
-              [ -f .tmpPyCh/output.txt ] && (cat .tmpPyCh/output.txt) && rm -rf .tmpPyCh; exit 1;'
+              if [ -f .tmpPyCh/output.txt ]; then
+                cat .tmpPyCh/output.txt;
+                rm -rf .tmpPyCh;
+                exit 1;
+              else
+                rm -rf .tmpPyCh;
+                exit 0;
+              fi;'
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.9.0.5
     hooks:
@@ -42,4 +51,10 @@ repos:
                   unset mt; unset mline;
                 done < .tmpShCh/tmp;
               done;
-              [ -f .tmpShCh/output.txt ] && (cat .tmpShCh/output.txt && rm -rf .tmpShch && exit 1)'
+              if [ -f .tmpShCh/output.txt ]; then
+                cat .tmpShCh/output.txt;
+                rm -rf .tmpShch; exit 1;
+              else
+                rm -rf .tmpShCh;
+                exit 0;
+              fi;'
