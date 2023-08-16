@@ -17,4 +17,10 @@ for file in $(git diff --cached --name-only | grep '\.sh'); do
     unset mline
   done <.tmpShCh/tmp
 done
-[ -f .tmpShCh/output.txt ] && (cat .tmpShCh/output.txt && rm -rf .tmpShCh exit 1)
+if [ -f .tmpShCh/output.txt ]; then
+  cat .tmpShCh/output.txt
+  rm -rf .tmpShCh
+  exit 1
+else
+  exit 0
+fi
