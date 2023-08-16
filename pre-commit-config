@@ -10,11 +10,10 @@ repos:
                 filename="${file##*/}";
                 git diff --cached "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpPyCh/dfiles/"${filename}";
                 for issue in "$(flake8 "$file")"; do
-                  p1="${issue#*:}" && p2=${p1%%:*};
+                  p1="${issue#*:}" && p2="${p1%%:*}";
                   mline=$(sed -n "$p2"p "$file");
-                  [ -n "$mline" ] && mt=$(cat ".tmpPyCh/dfiles/${filename}" | grep "$mline");
+                  [ -n "$mline" ] && mt=$(grep "$mline" < ".tmpPyCh/dfiles/${filename}");
                   if [ -n "$mt" ]; then
-                    echo -e "==>" >> .tmpPyCh/output.txt;
                     echo "$issue" >> .tmpPyCh/output.txt;
                   fi;
                   unset mt; unset mline;
@@ -27,19 +26,20 @@ repos:
       - id: shellcheck
         # get staged files, write newlines/file to tempfile, write file/issue/stgfie, check if issue exist in newlines, add to output
         entry: bash -c 'mkdir -p .tmpShCh/dfiles && mkdir -p .tmpShCh/issues;
-              files=$(git diff --cached --name-only | grep .sh);
+              files=$(git diff --cached --name-only | grep "\.sh");
               for file in $files; do
                 filename="${file##*/}";
                 git diff --cached "${file}" | grep "^[+][^+-]" | sed "s|^+||g" > .tmpShCh/dfiles/"${filename}";
                 shellcheck "$file" | sed "/^$/d" | awk "/^In/{x=\".tmpShCh/issues/${filename%.*}\"++i;}{print > x;}";
-                for ifile in .tmpShCh/issues/${filename%.*}*; do
-                  mline="$(cat "$ifile" | head -2)";
-                  [ -n "$mline" ] && mt=$(cat ".tmpShCh/dfiles/${filename}" | grep "$mline");
+                find  .tmpShCh/issues -type f -iname "${filename%.*}*" > .tmpShCh/tmp;
+                while IFS= read -r ifile; do
+                  mline="$(head -2 < "$ifile")";
+                  [ -n "$mline" ] && mt=$(grep "$mline" < ".tmpShCh/dfiles/${filename}");
                   if [ -n "$mt" ]; then
                     echo -e "\n----------------------------------" >> .tmpShCh/output.txt;
                     cat "$ifile" >> .tmpShCh/output.txt;
                   fi;
                   unset mt; unset mline;
-                done;
+                done < .tmpShCh/tmp;
               done;
               [ -f .tmpShCh/output.txt ] && (cat .tmpShCh/output.txt && rm -rf .tmpShch && exit 1)'
